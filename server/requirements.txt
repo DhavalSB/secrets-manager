@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+cryptography
+httpx
+python-dotenv
+pytest
