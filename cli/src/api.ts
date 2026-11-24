@@ -1,7 +1,7 @@
 // One helper for every call to the backend: adds the token, sends/parses JSON,
 // and turns error responses into an ApiError with the server's message.
 
-import { currentToken, serverUrl } from "./config.ts";
+import { currentToken, isAgentMode, serverUrl } from "./config.ts";
 
 export class ApiError extends Error {
   constructor(
@@ -15,6 +15,13 @@ export class ApiError extends Error {
 export async function api<T = any>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = currentToken();
+  if (!token && isAgentMode() && !path.startsWith("/auth/")) {
+    throw new ApiError(
+      401,
+      "sm is running under an AI agent, so it won't use your personal login. " +
+        "A human needs to create an agent token first: sm token create NAME --for-agents [--keys A,B]",
+    );
+  }
   if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
@@ -32,6 +39,9 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
   const text = await res.text();
   const data = text ? safeJson(text) : null;
   if (!res.ok) {
+    if (res.status === 401 && isAgentMode() && !process.env.SM_TOKEN) {
+      throw new ApiError(401, "The agent token is expired or revoked. A human needs to run: sm token create NAME --for-agents");
+    }
     const detail = data?.detail;
     const message =
       typeof detail === "string" ? detail : detail ? JSON.stringify(detail) : `${res.status} ${res.statusText}`;

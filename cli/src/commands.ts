@@ -2,7 +2,7 @@
 // so both people and agents/scripts can use them.
 
 import { api, ApiError, type Grant, type SecretSummary, type TeamInfo, type UserInfo } from "./api.ts";
-import { credentialsPath, deleteCredentials, readCredentials } from "./config.ts";
+import { agentCredentialsPath, credentialsPath, deleteCredentials, isAgentMode, readCredentials, saveAgentCredentials, serverUrl } from "./config.ts";
 import { browserLogin, devLogin } from "./login.ts";
 import { flag, grantText, has, list, need, printJson, readStdin, table, UsageError, type Args } from "./util.ts";
 
@@ -12,7 +12,14 @@ const enc = encodeURIComponent;
 // Session
 // ---------------------------------------------------------------------------
 
+function refuseForAgents(what: string): void {
+  if (isAgentMode()) {
+    throw new UsageError(`Agents can't ${what}. Ask the human to run it in their own terminal (or set SM_AGENT=0 if you are the human).`);
+  }
+}
+
 export async function login(args: Args): Promise<void> {
+  refuseForAgents("log in");
   const dev = flag(args, "dev");
   if (readCredentials() && !process.env.SM_TOKEN) {
     await api("POST", "/auth/logout").catch(() => {}); // don't leave the previous session alive
@@ -23,6 +30,7 @@ export async function login(args: Args): Promise<void> {
 }
 
 export async function logout(_args: Args): Promise<void> {
+  refuseForAgents("log out the human");
   if (process.env.SM_TOKEN) throw new UsageError("SM_TOKEN is set; unset it (or revoke the token) instead.");
   if (!readCredentials()) return console.log("Not logged in.");
   try {
@@ -205,6 +213,7 @@ interface TokenInfo {
 export async function token(args: Args): Promise<void> {
   const sub = args.positional[0];
   if (sub === "create") {
+    refuseForAgents("create tokens");
     const name = need(args, 1, "NAME");
     const keys = list(args, "keys");
     const t = await api<TokenInfo>("POST", "/tokens", {
@@ -213,6 +222,16 @@ export async function token(args: Args): Promise<void> {
       keys: keys.length ? keys : null,
       expires_days: Number(flag(args, "days") ?? 7),
     });
+    if (has(args, "for-agents")) {
+      // Saved where sm finds it automatically in agent mode; never printed.
+      saveAgentCredentials({ server: serverUrl(), token: t.token!, login: t.name });
+      console.log(
+        `Agent token "${t.name}" saved to ${agentCredentialsPath}: ${t.read_only ? "read-only" : "read/write"}, ` +
+          `keys: ${t.allowed_keys?.join(", ") ?? "all you can read"}, expires ${t.expires_at.slice(0, 10)}.\n` +
+          "Coding agents (Claude Code, or anything with SM_AGENT=1) now use it automatically. Revoke with: sm token revoke " + t.id,
+      );
+      return;
+    }
     if (has(args, "json")) return printJson(t);
     console.error(
       `Agent token "${t.name}": ${t.read_only ? "read-only" : "read/write"}, keys: ${t.allowed_keys?.join(", ") ?? "all you can read"}, expires ${t.expires_at.slice(0, 10)}.`,
@@ -237,10 +256,11 @@ export async function token(args: Args): Promise<void> {
     );
   }
   if (sub === "revoke") {
+    refuseForAgents("revoke tokens");
     await api("DELETE", `/tokens/${enc(need(args, 1, "ID"))}`);
     return console.log("Revoked.");
   }
-  throw new UsageError("Usage: sm token create NAME [--keys A,B] [--allow-write] [--days N] | ls | revoke ID");
+  throw new UsageError("Usage: sm token create NAME [--keys A,B] [--allow-write] [--days N] [--for-agents] | ls | revoke ID");
 }
 
 export async function audit(args: Args): Promise<void> {

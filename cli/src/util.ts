@@ -9,7 +9,9 @@ export interface Args {
 }
 
 // Flags that never take a value.
-const BOOLEAN_FLAGS = new Set(["json", "admin", "allow-write", "help", "replace", "yes"]);
+const BOOLEAN_FLAGS = new Set(["json", "admin", "allow-write", "for-agents", "help", "replace", "yes"]);
+// Flags that take a value.
+const VALUE_FLAGS = new Set(["dev", "read", "write", "remove", "keys", "team", "member", "days", "limit", "secret"]);
 
 export function parseArgs(argv: string[]): Args {
   const args: Args = { positional: [], flags: {}, rest: [] };
@@ -21,6 +23,7 @@ export function parseArgs(argv: string[]): Args {
     }
     if (a.startsWith("--")) {
       let [name, value] = a.slice(2).split("=", 2) as [string, string | undefined];
+      if (!BOOLEAN_FLAGS.has(name) && !VALUE_FLAGS.has(name)) throw new UsageError(`Unknown option --${name}. Run \`sm help\`.`);
       if (value === undefined && !BOOLEAN_FLAGS.has(name)) {
         value = argv[++i];
         if (value === undefined) throw new UsageError(`--${name} needs a value`);

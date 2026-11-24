@@ -26,8 +26,10 @@ Secrets:
       P is user:<login>, @<login>, team:<name>, or org
 
 Agents:
-  sm token create NAME [--keys A,B] [--allow-write] [--days 7]
-                                       scoped token; give it to an agent as SM_TOKEN
+  sm token create NAME [--keys A,B] [--allow-write] [--days 7] [--for-agents]
+                                       scoped token for an agent. --for-agents saves it so
+                                       coding agents use it automatically (otherwise it's
+                                       printed once, to hand over as SM_TOKEN)
   sm token ls | sm token revoke ID
   sm run [--keys A,B] -- COMMAND...    run COMMAND with your secrets as env vars
 
@@ -41,6 +43,9 @@ People (everyone can list; admins can change):
 Environment:
   SM_SERVER   backend URL (default http://localhost:8000)
   SM_TOKEN    use this token instead of the saved login (agents, CI)
+  SM_AGENT    1 = this is an agent: use the agent token, never the human login
+              0 = this is a human, even if CLAUDECODE / AI_AGENT are set
+              (agents are detected automatically from CLAUDECODE or AI_AGENT)
 `;
 
 const COMMANDS: Record<string, (a: Args) => Promise<void>> = {

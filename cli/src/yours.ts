@@ -8,6 +8,7 @@
 // Try it:   bun run src/index.ts whoami         bun run src/index.ts get STRIPE_KEY
 
 import { api, type Me, type SecretWithValue } from "./api.ts";
+import { isAgentMode } from "./config.ts";
 import { has, need, printJson, type Args } from "./util.ts";
 
 export async function whoami(args: Args): Promise<void> {
@@ -16,6 +17,7 @@ export async function whoami(args: Args): Promise<void> {
   const role = me.is_admin ? "admin" : "member";
   console.log(`${me.login} (${role}) in ${me.org}`);
   console.log(`teams: ${me.teams.join(", ") || "(none)"}`);
+  if (isAgentMode() && !process.env.SM_TOKEN) console.log("mode: agent (using the saved agent token, not your personal login)");
   if (me.session.kind === "agent") {
     const keys = me.session.allowed_keys?.join(", ") ?? "all readable keys";
     console.log(`agent token "${me.session.name}": ${me.session.read_only ? "read-only" : "read/write"}, ${keys}`);
