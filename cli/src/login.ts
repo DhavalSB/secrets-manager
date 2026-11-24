@@ -21,14 +21,17 @@ export async function browserLogin(): Promise<string> {
     fetch(req) {
       const url = new URL(req.url);
       if (url.pathname !== "/callback") return new Response("Not found", { status: 404 });
-      if (url.searchParams.get("state") !== state) return page("Login failed: state mismatch. Run sm login again.", 400);
+      if (url.searchParams.get("state") !== state) {
+        return resultPage({ error: "this login didn't come from your terminal (state mismatch)." });
+      }
       const error = url.searchParams.get("error");
       if (error) {
         finish({ error });
-        return page(`Login failed: ${error}`, 400);
+        return resultPage({ error });
       }
-      finish({ token: url.searchParams.get("token") ?? undefined, login: url.searchParams.get("login") ?? undefined });
-      return page("Logged in. You can close this tab and return to your terminal.");
+      const login = url.searchParams.get("login") ?? undefined;
+      finish({ token: url.searchParams.get("token") ?? undefined, login });
+      return resultPage({ login });
     },
   });
 
@@ -69,9 +72,13 @@ function openBrowser(url: string): void {
   }
 }
 
-function page(message: string, status = 200): Response {
-  const html = `<!doctype html><meta charset="utf-8"><title>sm login</title>
-<body style="font-family:system-ui;display:grid;place-items:center;height:90vh">
-<h2>${message.replace(/</g, "&lt;")}</h2></body>`;
-  return new Response(html, { status, headers: { "Content-Type": "text/html" } });
+/**
+ * Send the browser to the backend's styled result page. Only the login name or error
+ * goes in the URL; the token stays here in the CLI.
+ */
+function resultPage(params: { login?: string; error?: string }): Response {
+  const q = new URLSearchParams();
+  if (params.login) q.set("login", params.login);
+  if (params.error) q.set("error", params.error);
+  return Response.redirect(`${serverUrl()}/auth/done?${q}`, 302);
 }

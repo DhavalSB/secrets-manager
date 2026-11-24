@@ -18,8 +18,9 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlmodel import Session as DB
 from sqlmodel import select
@@ -29,6 +30,7 @@ from .audit import record
 from .crypto import hash_token, new_token
 from .db import get_db
 from .models import Session, User, utcnow
+from .pages import login_result
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -83,10 +85,16 @@ class Caller:
         return self.user.github_login
 
 
-def current_caller(authorization: str | None = Header(default=None), db: DB = Depends(get_db)) -> Caller:
-    if not authorization or not authorization.lower().startswith("bearer "):
+# Reads "Authorization: Bearer <token>" and adds the Authorize button to /docs.
+_bearer = HTTPBearer(auto_error=False, description="A token from `sm login` (~/.config/sm/credentials.json) or `sm token create`.")
+
+
+def current_caller(
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer), db: DB = Depends(get_db)
+) -> Caller:
+    if creds is None or creds.scheme.lower() != "bearer":
         raise HTTPException(401, "Not logged in. Run `sm login`.")
-    token = authorization.split(" ", 1)[1].strip()
+    token = creds.credentials.strip()
     session = db.exec(select(Session).where(Session.token_hash == hash_token(token))).first()
     if session is None:
         raise HTTPException(401, "Invalid or revoked token. Run `sm login`.")
@@ -154,7 +162,7 @@ def login(port: int = Query(ge=1024, le=65535), state: str = Query(min_length=8,
 def callback(code: str = "", state: str = "", error: str = "", db: DB = Depends(get_db)):
     pending = _pending.pop(state, None)
     if pending is None:
-        return HTMLResponse("<h3>Login link expired. Run <code>sm login</code> again.</h3>", status_code=400)
+        return HTMLResponse(login_result(error="this login link has expired or was already used."), status_code=400)
     port, cli_state, _ = pending
     if error or not code:
         return _cli_redirect(port, state=cli_state, error=error or "GitHub did not return a code")
@@ -192,6 +200,15 @@ def callback(code: str = "", state: str = "", error: str = "", db: DB = Depends(
     token, _ = create_session(db, user, kind="cli", name="cli")
     record(db, user.id, user.github_login, "auth.login")
     return _cli_redirect(port, state=cli_state, token=token, login=user.github_login)
+
+
+@router.get("/done", response_class=HTMLResponse, include_in_schema=False)
+def done(login: str = "", error: str = ""):
+    """Where `sm login` sends the browser at the end: a styled "you're logged in" page.
+
+    Only shows text; the token never comes here (it went straight to the CLI).
+    """
+    return HTMLResponse(login_result(login=login[:100], error=error[:300]), status_code=400 if error else 200)
 
 
 class DevLoginIn(BaseModel):
