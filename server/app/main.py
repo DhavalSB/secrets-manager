@@ -1,4 +1,4 @@
-"""FastAPI app. Run from server/:  ../env/bin/uvicorn app.main:app --reload"""
+"""FastAPI app. Run from server/:  ../.venv/bin/uvicorn app.main:app --reload"""
 
 from contextlib import asynccontextmanager
 

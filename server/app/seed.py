@@ -1,7 +1,7 @@
 """Create the org and first admin from .env.
 
-    ../env/bin/python -m app.seed            # org + admin only
-    ../env/bin/python -m app.seed --demo     # also bob/carol/dan, two teams, three secrets
+    ../.venv/bin/python -m app.seed            # org + admin only
+    ../.venv/bin/python -m app.seed --demo     # also dayvidwang/carol/dan, two teams, three secrets
 """
 
 import os
@@ -37,6 +37,15 @@ def seed(demo: bool = False) -> None:
     with DB(engine) as db:
         org = db.exec(select(Org).where(Org.name == org_name)).first()
         if org is None:
+            # The app has a single org. Changing SEED_ORG_NAME after seeding must not
+            # create a second, empty org next to the one everyone is in.
+            existing = db.exec(select(Org)).first()
+            if existing is not None:
+                sys.exit(
+                    f"The database already has org '{existing.name}', but .env says SEED_ORG_NAME={org_name}.\n"
+                    f"Either set SEED_ORG_NAME={existing.name}, rename the org in the database, "
+                    "or delete server/secrets.db to start over."
+                )
             org = Org(name=org_name)
             db.add(org)
             db.commit()
@@ -46,9 +55,9 @@ def seed(demo: bool = False) -> None:
 
         if not demo:
             return
-        bob, carol, dan = (get_or_create_user(db, n, org) for n in ("bob", "carol", "dan"))
+        dayvidwang, carol, dan = (get_or_create_user(db, n, org) for n in ("dayvidwang", "carol", "dan"))
         teams = {}
-        for name, members in {"backend": [bob, carol], "frontend": [carol, dan]}.items():
+        for name, members in {"backend": [dayvidwang, carol], "frontend": [carol, dan]}.items():
             t = db.exec(select(Team).where(Team.name == name, Team.org_id == org.id)).first()
             if t is None:
                 t = Team(name=name, org_id=org.id)
@@ -61,8 +70,8 @@ def seed(demo: bool = False) -> None:
                 print(f"  team {name}: {', '.join(m.github_login for m in members)}")
             teams[name] = t
         demo_secrets = [
-            ("STRIPE_KEY", "sk_test_demo_123", bob, [("team", teams["backend"].id, "read")]),
-            ("DB_PASSWORD", "hunter2", carol, [("user", bob.id, "read")]),
+            ("OPENAI_API_KEY", "supersecretpassword", dayvidwang, [("team", teams["backend"].id, "read")]),
+            ("DB_PASSWORD", "hunter2", carol, [("user", dayvidwang.id, "read")]),
             ("SENTRY_DSN", "https://abc@sentry.example/1", dan, [("org", org.id, "read")]),
         ]
         for key, value, owner, grants in demo_secrets:

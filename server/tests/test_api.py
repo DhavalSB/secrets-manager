@@ -1,4 +1,4 @@
-"""End-to-end API tests over the seeded demo company (see app/seed.py --demo)."""
+"""End-to-end API tests over the example company in conftest.py."""
 
 
 def keys(resp) -> set[str]:

@@ -1,6 +1,6 @@
 """Tests for the permission rules, using the Acme example company.
 
-Run from server/:   ../env/bin/pytest tests/test_permissions.py -v
+Run from server/:   ../.venv/bin/pytest tests/test_permissions.py -v
 
 Org 1 = Acme.  Users: alice (1, admin), bob (2), carol (3), dan (4).
 Teams: backend (1) = bob, carol.   frontend (2) = carol, dan.
