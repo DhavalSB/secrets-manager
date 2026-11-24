@@ -1,10 +1,11 @@
 {
-  "name": "cli",
-  "module": "index.ts",
+  "name": "sm-cli",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "typecheck": "bun check"
+    "sm": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit -p ."
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -14,5 +15,8 @@
   },
   "dependencies": {
     "@opentui/core": "^0.9.8"
+  },
+  "bin": {
+    "sm": "src/index.ts"
   }
 }
