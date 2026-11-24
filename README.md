@@ -149,16 +149,16 @@ FastAPI has interactive API docs at `/docs` when the server is running.
 ## Deliberately Cut Features
 
 1. Deny Grants: a user cannot be explicitly denied from a certain secret if their team/org already enables them access to it.
-- Can cause conflicts with priority of permissions, and secret-by-secret permission can still be granted with the current implementation.
+   - Can cause conflicts with priority of permissions, and secret-by-secret permission can still be granted with the current implementation.
 
 2. Multi-Organization Setup: managing secrets for multiple organizations would require running multiple server instances.
-- The effect of multiple organizations can be achieved with the teams feature already. Implementing multi-organizational access would require reshaping the database structure and verifying users do not have access to secrets from a different organization.
+   - The effect of multiple organizations can be achieved with the teams feature already. Implementing multi-organizational access would require reshaping the database structure and verifying users do not have access to secrets from a different organization.
 
 3. Secrets Versioning: there is no tracked history of secret K/V pairs.
-- This would likely be the highest value addition to Secrets Manager to fix mistakenly changed secrets, but the implementation would be non-trivial.
+   - This would likely be the highest value addition to Secrets Manager to fix mistakenly changed secrets, but the implementation would be non-trivial.
 
 4. Sophisticated Admin Seeding: the first admin must be directly seeded into the database using their GitHub username.
-- More sophisticated admin seeding could use GitHub organizations or server-side setup codes, but a practical solution would depend on the organizations needs.
+   - More sophisticated admin seeding could use GitHub organizations or server-side setup codes, but a practical solution would depend on the organizations needs.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
